@@ -86,14 +86,14 @@ export function Hero() {
             your hour online in seconds, gather your squad and just show up to
             play.
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link to="/bookings">
                 Book a Slot
                 <ArrowRightIcon aria-hidden="true" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link to="/gallery">Explore Gallery</Link>
             </Button>
           </div>
@@ -144,7 +144,7 @@ export function Hero() {
 
       {/* Floating stats card — overlaps into the next section */}
       <div className="relative z-10 mx-auto -mb-10 w-full max-w-5xl px-4 md:px-6">
-        <dl className="bg-card grid grid-cols-3 divide-x divide-border rounded-2xl border p-2 shadow-lg shadow-primary/5 sm:p-4">
+        <dl className="bg-card grid grid-cols-1 divide-y divide-border rounded-2xl border p-2 shadow-lg shadow-primary/5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:p-4">
           {heroStats.map((stat) => (
             <div
               key={stat.label}

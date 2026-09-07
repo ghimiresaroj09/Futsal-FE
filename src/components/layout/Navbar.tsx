@@ -3,6 +3,7 @@ import {
   ChevronDownIcon,
   KeyRoundIcon,
   LogOutIcon,
+  MenuIcon,
   UserIcon,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -18,6 +19,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { publicNavItems } from "@/config/nav";
 import { logoutEverywhere } from "@/lib/auth";
 import { getInitials } from "@/lib/format";
@@ -47,12 +56,12 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 md:gap-6 md:px-6">
+      <div className="relative mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 md:gap-6 md:px-6">
         <Logo className="shrink-0" />
 
-        {/* Primary links — same line, scroll horizontally on tiny screens */}
+        {/* Centred desktop navigation. Small screens use the sheet below. */}
         <nav
-          className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-5"
+          className="absolute left-1/2 hidden min-w-max -translate-x-1/2 items-center gap-5 md:flex"
           aria-label="Main"
         >
           {publicNavItems.map((item) => (
@@ -88,8 +97,9 @@ export function Navbar() {
         </nav>
 
         {/* Right side — auth state dependent */}
-        {isAuthenticated ? (
-          <DropdownMenu>
+        <div className="ml-auto hidden shrink-0 md:block">
+          {isAuthenticated ? (
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
@@ -139,17 +149,96 @@ export function Navbar() {
                 Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-2">
             <Button asChild variant="ghost">
               <Link to="/login">Login</Link>
             </Button>
             <Button asChild>
               <Link to="/signup">Sign Up</Link>
             </Button>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile navigation keeps links and account actions easy to reach
+            without squeezing the header or forcing horizontal scrolling. */}
+        <div className="ml-auto md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-10"
+                aria-label="Open menu"
+              >
+                <MenuIcon aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[min(22rem,calc(100%-1rem))] gap-0 p-0">
+              <SheetHeader className="border-b p-5 pr-12">
+                <Logo />
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col p-3" aria-label="Mobile main">
+                {publicNavItems.map((item) => (
+                  <SheetClose key={item.to} asChild>
+                    <NavLink
+                      to={item.to}
+                      end={item.to === "/"}
+                      className={({ isActive }) =>
+                        cn(
+                          "rounded-lg px-3 py-3 text-sm font-semibold transition-colors",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-muted",
+                        )
+                      }
+                    >
+                      {item.title}
+                    </NavLink>
+                  </SheetClose>
+                ))}
+              </nav>
+              <div className="mt-auto border-t p-4">
+                {isAuthenticated ? (
+                  <div className="grid gap-2">
+                    <SheetClose asChild>
+                      <Button asChild variant="outline" className="w-full justify-start">
+                        <Link to="/profile"><UserIcon aria-hidden="true" /> Profile</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button asChild variant="outline" className="w-full justify-start">
+                        <Link to="/view-bookings"><CalendarCheck2Icon aria-hidden="true" /> View Bookings</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button asChild variant="outline" className="w-full justify-start">
+                        <Link to="/change-password"><KeyRoundIcon aria-hidden="true" /> Change Password</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button variant="destructive" className="w-full justify-start" onClick={handleLogout}>
+                        <LogOutIcon aria-hidden="true" /> Logout
+                      </Button>
+                    </SheetClose>
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <SheetClose asChild>
+                      <Button asChild variant="outline" className="w-full"><Link to="/login">Login</Link></Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button asChild className="w-full"><Link to="/signup">Sign Up</Link></Button>
+                    </SheetClose>
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );
