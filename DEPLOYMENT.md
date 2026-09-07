@@ -26,8 +26,8 @@ Vercel proxy function does the same job. No backend CORS changes are needed.
 
    | Key | Value |
    |---|---|
-   | `VITE_API_BASE_URL` | `https://futsal-be.onrender.com` |
-   | `VITE_APP_NAME` | `Nexus FMS` |
+   | `VITE_API_BASE_URL` | `` |
+   | `VITE_APP_NAME` | ` ` |
 
 4. **Deploy** → note your URL (e.g. `https://nexus-fms.vercel.app`).
 
