@@ -54,4 +54,4 @@ Vercel proxy function does the same job. No backend CORS changes are needed.
 - **Cookies**: auth cookies are set with `Secure` automatically on HTTPS.
 - **Redeployments**: every push to `main` auto-deploys; PRs get preview URLs.
 - `VITE_API_BASE_URL` must be the backend origin only (for example,
-  `https://futsal-be.onrender.com`), without a trailing `/api` path.
+  ``), without a trailing `/api` path.
