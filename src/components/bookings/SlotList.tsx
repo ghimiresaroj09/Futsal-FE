@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const DAYPART_ORDER = ["Morning", "Afternoon", "Evening"] as const;
 
-/** Visual treatment per slot state: Available / Booked / Blocked. */
+/** Visual treatment per slot state: Available / Booked / Reserved / Blocked. */
 const stateStyles = {
   available: {
     card: "border-emerald-200 bg-card cursor-pointer hover:border-primary/50 hover:shadow-sm",
@@ -20,6 +20,12 @@ const stateStyles = {
     status: "text-red-500",
     dot: "bg-red-500",
     label: "Booked",
+  },
+  reserved: {
+    card: "border-amber-200 bg-amber-50/50 cursor-not-allowed",
+    status: "text-amber-600",
+    dot: "bg-amber-500",
+    label: "Reserved",
   },
   blocked: {
     card: "border-zinc-200 bg-zinc-50 cursor-not-allowed opacity-70",
@@ -35,7 +41,9 @@ function slotState(slot: BookableSlot, dateKey: string): SlotState {
   // A slot only blocks once it has ENDED — at 2:30 PM the ongoing 2–3 PM
   // slot is still bookable, 12–1 and 1–2 are not.
   if (isSlotEnded(dateKey, Number(slot.end_time.slice(0, 2)))) return "blocked";
-  return slot.status === "BOOKED" ? "booked" : "available";
+  if (slot.status === "BOOKED") return "booked";
+  if (slot.status === "RESERVED") return "reserved";
+  return "available";
 }
 
 /**

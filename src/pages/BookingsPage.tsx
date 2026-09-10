@@ -75,7 +75,7 @@ export function BookingsPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(() =>
     toDateKey(new Date()),
   );
-  const [bookedOverrides, setBookedOverrides] = useState<string[]>([]);
+  const [reservedOverrides, setBookedOverrides] = useState<string[]>([]);
   const [slotToBook, setSlotToBook] = useState<BookableSlot | null>(null);
   const futsal = useFutsalStore((s) => s.futsal);
   const token = useAuthStore((s) => s.token);
@@ -133,16 +133,16 @@ export function BookingsPage() {
 
   // Slots the user just booked (before the backend list catches up).
   const displaySlots = useMemo(() => {
-    const overrides = new Set(bookedOverrides);
+    const overrides = new Set(reservedOverrides);
     return slots.map((slot) =>
       overrides.has(`${slot.date}-${slot.start_time}`)
-        ? { ...slot, status: "BOOKED" as const }
+        ? { ...slot, status: "RESERVED" as const }
         : slot,
     );
-  }, [slots, bookedOverrides]);
+  }, [slots, reservedOverrides]);
 
   const handleConfirmed = (slot: BookableSlot, created: Booking) => {
-    // POST /api/v1/bookings/ succeeded — mark the slot booked locally
+    // POST /api/v1/bookings/ succeeded — mark the slot reserved locally
     // (until the next slots refresh) and celebrate with the reference.
     setBookedOverrides((current) => [
       ...current,

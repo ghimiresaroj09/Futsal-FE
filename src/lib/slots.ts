@@ -7,7 +7,7 @@
  *   api.get(`/slots?date=${dateKey}`)
  */
 
-export type SlotStatus = "AVAILABLE" | "BOOKED";
+export type SlotStatus = "AVAILABLE" | "BOOKED" | "RESERVED";
 
 export interface BookableSlot {
   /** Backend slot id — required when creating a booking (slot_id). */
