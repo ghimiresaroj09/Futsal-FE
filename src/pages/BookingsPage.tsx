@@ -101,24 +101,36 @@ export function BookingsPage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [slotsReloadKey, setSlotsReloadKey] = useState(0);
+  const [isClosed, setIsClosed] = useState(false);
+  const [closureReason, setClosureReason] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedDate) {
       setSlots([]);
+      setIsClosed(false);
+      setClosureReason(null);
       return;
     }
 
     let cancelled = false;
     setSlotsLoading(true);
     setSlotsError(null);
+    setIsClosed(false);
+    setClosureReason(null);
 
     fetchSlotsForDate(selectedDate)
-      .then((fetched) => {
-        if (!cancelled) setSlots(fetched);
+      .then((result) => {
+        if (!cancelled) {
+          setSlots(result.slots);
+          setIsClosed(result.isClosed ?? false);
+          setClosureReason(result.closureReason ?? null);
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setSlots([]);
+          setIsClosed(false);
+          setClosureReason(null);
           setSlotsError("Couldn't load slots for this date.");
         }
       })
@@ -235,6 +247,30 @@ export function BookingsPage() {
               >
                 Retry
               </Button>
+            </div>
+          ) : isClosed ? (
+            <div className="flex h-full min-h-72 flex-col items-center justify-center gap-3 p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                <CircleAlertIcon className="size-6" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Facility closed on this date
+                </p>
+                <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+                  {closureReason || "We're closed on this date. Please choose another day."}
+                </p>
+              </div>
+              {selectedDate !== toDateKey(new Date()) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => setSelectedDate(toDateKey(new Date()))}
+                >
+                  Back to today
+                </Button>
+              )}
             </div>
           ) : (
             <SlotList

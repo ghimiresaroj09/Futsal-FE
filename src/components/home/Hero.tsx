@@ -43,9 +43,14 @@ export function Hero() {
     let cancelled = false;
     const dateKey = toDateKey(new Date());
     fetchSlotsForDate(dateKey)
-      .then((slots) => {
+      .then((result) => {
         if (cancelled) return;
-        const free = slots.find(
+        // If closed or no slots, nextSlot stays null
+        if (result.isClosed || result.slots.length === 0) {
+          setNextSlot(null);
+          return;
+        }
+        const free = result.slots.find(
           (slot) =>
             slot.status === "AVAILABLE" &&
             !isSlotStarted(dateKey, Number(slot.start_time.slice(0, 2))),
