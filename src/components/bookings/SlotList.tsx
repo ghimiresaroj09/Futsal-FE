@@ -1,7 +1,7 @@
 import { CalendarDaysIcon } from "lucide-react";
 
 import { formatTime12h } from "@/lib/format";
-import { daypartOf, isSlotEnded, parseDateKey } from "@/lib/slots";
+import { daypartOf, isSlotStarted, parseDateKey } from "@/lib/slots";
 import type { BookableSlot } from "@/lib/slots";
 import { cn } from "@/lib/utils";
 
@@ -38,9 +38,9 @@ const stateStyles = {
 type SlotState = keyof typeof stateStyles;
 
 function slotState(slot: BookableSlot, dateKey: string): SlotState {
-  // A slot only blocks once it has ENDED — at 2:30 PM the ongoing 2–3 PM
-  // slot is still bookable, 12–1 and 1–2 are not.
-  if (isSlotEnded(dateKey, Number(slot.end_time.slice(0, 2)))) return "blocked";
+  // A slot blocks once it has STARTED — at 3:01 PM the 3–4 PM slot
+  // is no longer bookable.
+  if (isSlotStarted(dateKey, Number(slot.start_time.slice(0, 2)))) return "blocked";
   if (slot.status === "BOOKED") return "booked";
   if (slot.status === "RESERVED") return "reserved";
   return "available";

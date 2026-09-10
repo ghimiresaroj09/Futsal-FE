@@ -4,7 +4,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getSlotsForDate,
-  isSlotEnded,
+  isSlotStarted,
   monthMatrix,
   toDateKey,
 } from "@/lib/slots";
@@ -66,7 +66,7 @@ export function BookingCalendar({
         getSlotsForDate(key, hours).filter(
           (slot) =>
             slot.status === "AVAILABLE" &&
-            !isSlotEnded(key, Number(slot.end_time.slice(0, 2))),
+            !isSlotStarted(key, Number(slot.start_time.slice(0, 2))),
         ).length,
       );
     }

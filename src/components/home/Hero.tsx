@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { fetchSlotsForDate } from "@/lib/api/slots";
 import { formatTime12h } from "@/lib/format";
-import { isSlotEnded, toDateKey } from "@/lib/slots";
+import { isSlotStarted, toDateKey } from "@/lib/slots";
 import { useFutsalStore } from "@/store/futsal-store";
 
 /** "HH:mm:ss" → minutes past midnight. */
@@ -48,7 +48,7 @@ export function Hero() {
         const free = slots.find(
           (slot) =>
             slot.status === "AVAILABLE" &&
-            !isSlotEnded(dateKey, Number(slot.end_time.slice(0, 2))),
+            !isSlotStarted(dateKey, Number(slot.start_time.slice(0, 2))),
         );
         setNextSlot(free ? formatTime12h(free.start_time) : null);
       })

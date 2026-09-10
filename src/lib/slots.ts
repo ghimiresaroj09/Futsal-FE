@@ -108,15 +108,15 @@ export function daypartOf(
 }
 
 /**
- * True once the slot has ended. At 2:30 PM the 12–1 and 1–2 slots are past,
- * but the ongoing 2–3 slot is still bookable.
+ * True once the slot has started. At 3:01 PM, the 3-4 PM slot has started
+ * and should be blocked. Only slots that haven't started yet are bookable.
  */
-export function isSlotEnded(
+export function isSlotStarted(
   dateKey: string,
-  endHour: number,
+  startHour: number,
   now = new Date(),
 ): boolean {
-  const end = parseDateKey(dateKey);
-  end.setHours(endHour, 0, 0, 0);
-  return end.getTime() <= now.getTime();
+  const start = parseDateKey(dateKey);
+  start.setHours(startHour, 0, 0, 0);
+  return start.getTime() <= now.getTime();
 }
