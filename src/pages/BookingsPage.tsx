@@ -3,6 +3,10 @@ import {
   ShieldCheckIcon,
   CircleAlertIcon,
   LoaderCircleIcon,
+  CalendarDaysIcon,
+  WalletIcon,
+  ShieldHalfIcon,
+  TimerIcon,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,14 +16,27 @@ import { BookingCalendar } from "@/components/bookings/BookingCalendar";
 import { SlotList } from "@/components/bookings/SlotList";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { formatDate, formatTime12h } from "@/lib/format";
 import { toDateKey } from "@/lib/slots";
 import type { BookableSlot } from "@/lib/slots";
 import type { Booking } from "@/types/booking";
 import { fetchSlotsForDate } from "@/lib/api/slots";
+import { fetchBookingsHeroSection } from "@/lib/api/bookings-hero";
+import { clearCacheKey } from "@/lib/api-cache";
 import { useAuthStore } from "@/store/auth-store";
 import { useFutsalStore } from "@/store/futsal-store";
+import type { BookingsHeroSection } from "@/types/bookings-hero";
+import type { LucideIcon } from "lucide-react";
+
+// Map Font Awesome icon codes to Lucide icons
+const iconMap: Record<string, LucideIcon> = {
+  "fa-solid fa-calendar-days": CalendarDaysIcon,
+  "fa-solid fa-wallet": WalletIcon,
+  "fa-solid fa-shield-halved": ShieldHalfIcon,
+  "fa-solid fa-stopwatch": TimerIcon,
+};
 
 const steps = [
   {
@@ -35,29 +52,6 @@ const steps = [
     title: "Confirm & pay at counter",
     description:
       "Enter your details to lock the slot, then pay when you arrive.",
-  },
-];
-
-const policies = [
-  {
-    title: "Free rescheduling",
-    description:
-      "Move or cancel your booking at no cost up to 12 hours before the slot.",
-  },
-  {
-    title: "Pay at the counter",
-    description:
-      "No online payment needed — settle up when you arrive at the arena.",
-  },
-  {
-    title: "Slots are held for you",
-    description:
-      "Your booking locks the court for the full hour — nobody else can take it.",
-  },
-  {
-    title: "Arrive 10 minutes early",
-    description:
-      "Check in at the counter, grab bibs and a ball, and warm up before kickoff.",
   },
 ];
 
@@ -77,9 +71,34 @@ export function BookingsPage() {
   );
   const [reservedOverrides, setBookedOverrides] = useState<string[]>([]);
   const [slotToBook, setSlotToBook] = useState<BookableSlot | null>(null);
+  const [heroData, setHeroData] = useState<BookingsHeroSection | null>(null);
+  const [heroLoading, setHeroLoading] = useState(true);
   const futsal = useFutsalStore((s) => s.futsal);
   const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
+
+  // Fetch bookings hero section data
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchBookingsHeroSection()
+      .then((data) => {
+        if (!cancelled) {
+          setHeroData(data);
+          setHeroLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHeroData(null);
+          setHeroLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Slot click: guests get a login nudge (and land on /login, returning
@@ -160,6 +179,10 @@ export function BookingsPage() {
       ...current,
       `${slot.date}-${slot.start_time}`,
     ]);
+    
+    // Clear the cache for this date so next fetch gets fresh data
+    clearCacheKey(`slots-${slot.date}`);
+    
     setSlotToBook(null);
     toast.success("Booking confirmed!", {
       description: `${created.booking_reference} · ${formatDate(slot.date)}, ${formatTime12h(
@@ -171,41 +194,45 @@ export function BookingsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8 px-4 py-10 md:px-6">
       {/* Banner */}
-      <section className="relative overflow-hidden rounded-3xl">
-        <img
-          src="/images/venue-indoor.jpg"
-          alt="Nexus Futsal indoor court"
-          className="absolute inset-0 size-full object-cover"
-        />
-        <div className="from-primary/90 via-primary/70 to-primary/30 absolute inset-0 bg-linear-to-r" />
-        <div className="text-primary-foreground relative max-w-2xl space-y-3 px-6 py-10 sm:px-10 sm:py-12">
-          <p className="text-xs font-semibold tracking-wide uppercase">
-            Bookings
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-            Pick your date. Own your slot.
-          </h1>
-          <p className="text-sm text-balance opacity-90 sm:text-base">
-            Browse the calendar for open hours, choose the slot that fits your
-            squad and confirm in seconds — pay at the counter, reschedule free
-            up to 12 hours before.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
-              🕕 Open {formatTime12h(futsal?.opening_time ?? "06:00:00")} –{" "}
-              {formatTime12h(futsal?.closing_time ?? "22:00:00")} daily
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
-              💵 Rs {Number(futsal?.price_per_slot ?? 1500).toLocaleString()} /
-              hour
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
-              📍 {futsal?.address ?? "Balaju Height"},{" "}
-              {futsal?.location ?? "Kathmandu"}
-            </span>
+      {heroLoading || !heroData ? (
+        <section className="relative overflow-hidden rounded-3xl">
+          <Skeleton className="h-64 w-full sm:h-80" />
+        </section>
+      ) : (
+        <section className="relative overflow-hidden rounded-3xl">
+          <img
+            src={heroData.image_url}
+            alt={`${futsal?.name || "Futsal"} court`}
+            className="absolute inset-0 size-full object-cover"
+          />
+          <div className="from-primary/90 via-primary/70 to-primary/30 absolute inset-0 bg-linear-to-r" />
+          <div className="text-primary-foreground relative max-w-2xl space-y-3 px-6 py-10 sm:px-10 sm:py-12">
+            <p className="text-xs font-semibold tracking-wide uppercase">
+              Bookings
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+              {heroData.title}
+            </h1>
+            <p className="text-sm text-balance opacity-90 sm:text-base">
+              {heroData.description}
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+                🕕 Open {formatTime12h(futsal?.opening_time ?? "06:00:00")} –{" "}
+                {formatTime12h(futsal?.closing_time ?? "22:00:00")} daily
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+                💵 Rs {Number(futsal?.price_per_slot ?? 1500).toLocaleString()} /
+                hour
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+                📍 {futsal?.address ?? "Balaju Height"},{" "}
+                {futsal?.location ?? "Kathmandu"}
+              </span>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Calendar + slots — the main event */}
       <section className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)]">
@@ -331,24 +358,43 @@ export function BookingsPage() {
             everyone.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {policies.map((policy) => (
-            <Card
-              key={policy.title}
-              className="flex items-start gap-3 rounded-2xl p-5"
-            >
-              <div className="bg-primary/10 text-primary mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg">
-                <ShieldCheckIcon className="size-4" aria-hidden="true" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">{policy.title}</h3>
-                <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                  {policy.description}
-                </p>
-              </div>
-            </Card>
-          ))}
-        </div>
+        {heroLoading || !heroData ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="flex items-start gap-3 rounded-2xl p-5">
+                <Skeleton className="size-8 rounded-lg mt-0.5" />
+                <div className="flex-1">
+                  <Skeleton className="h-5 w-32 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {heroData.info.map((policy) => {
+              const IconComponent = iconMap[policy.iconcode] || ShieldCheckIcon;
+              
+              return (
+                <Card
+                  key={policy.title}
+                  className="flex items-start gap-3 rounded-2xl p-5"
+                >
+                  <div className="bg-primary/10 text-primary mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg">
+                    <IconComponent className="size-4" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">{policy.title}</h3>
+                    <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                      {policy.description}
+                    </p>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Help strip */}

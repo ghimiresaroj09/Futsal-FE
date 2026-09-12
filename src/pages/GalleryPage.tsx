@@ -1,187 +1,117 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ExpandIcon,
+  LoaderCircleIcon,
   PlayIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useDocumentTitle } from "@/hooks/use-document-title";
-
-type GalleryCategory = "Venue" | "Matches" | "Community";
-
-interface GalleryItem {
-  id: string;
-  src: string;
-  title: string;
-  category: GalleryCategory;
-  aspect: string;
-  imageClass?: string;
-}
-
-const galleryItems: GalleryItem[] = [
-  {
-    id: "hero",
-    src: "/images/hero.jpg",
-    title: "Kickoff under the lights",
-    category: "Matches",
-    aspect: "aspect-[16/10]",
-  },
-  {
-    id: "venue-indoor",
-    src: "/images/venue-indoor.jpg",
-    title: "The indoor court",
-    category: "Venue",
-    aspect: "aspect-[3/4]",
-  },
-  {
-    id: "action-2",
-    src: "/images/action-2.jpg",
-    title: "Midfield battle",
-    category: "Matches",
-    aspect: "aspect-square",
-  },
-  {
-    id: "floodlights",
-    src: "/images/floodlights.jpg",
-    title: "Floodlights on",
-    category: "Venue",
-    aspect: "aspect-[4/5]",
-  },
-  {
-    id: "celebration",
-    src: "/images/celebration.jpg",
-    title: "That goal feeling",
-    category: "Community",
-    aspect: "aspect-[4/3]",
-  },
-  {
-    id: "venue-outdoor",
-    src: "/images/venue-outdoor.jpg",
-    title: "The outdoor court",
-    category: "Venue",
-    aspect: "aspect-[4/3]",
-  },
-  {
-    id: "action-1",
-    src: "/images/action-1.jpg",
-    title: "Saved!",
-    category: "Matches",
-    aspect: "aspect-[4/3]",
-  },
-  {
-    id: "coaching",
-    src: "/images/coaching.jpg",
-    title: "Saturday coaching",
-    category: "Community",
-    aspect: "aspect-[3/4]",
-  },
-  {
-    id: "turf",
-    src: "/images/turf.jpg",
-    title: "Fresh turf, morning light",
-    category: "Venue",
-    aspect: "aspect-square",
-  },
-  {
-    id: "venue-rooftop",
-    src: "/images/venue-rooftop.jpg",
-    title: "Court with a view",
-    category: "Venue",
-    aspect: "aspect-[16/10]",
-  },
-  {
-    id: "hero-kickoff",
-    src: "/images/hero.jpg",
-    title: "First whistle",
-    category: "Matches",
-    aspect: "aspect-square",
-    imageClass: "object-[65%_center]",
-  },
-  {
-    id: "coaching-huddle",
-    src: "/images/coaching.jpg",
-    title: "Team talk",
-    category: "Community",
-    aspect: "aspect-[16/10]",
-    imageClass: "object-[center_30%]",
-  },
-];
-
-const FILTERS = ["All", "Venue", "Matches", "Community"] as const;
-type Filter = (typeof FILTERS)[number];
-
-interface GalleryVideo {
-  id: string;
-  src: string;
-  poster: string;
-  title: string;
-  category: GalleryCategory;
-  duration: string;
-}
-
-const galleryVideos: GalleryVideo[] = [
-  {
-    id: "v-floodlights",
-    src: "/videos/floodlights.mp4",
-    poster: "/images/floodlights.jpg",
-    title: "Floodlights on at dusk",
-    category: "Venue",
-    duration: "0:06",
-  },
-  {
-    id: "v-action",
-    src: "/videos/action.mp4",
-    poster: "/images/action-2.jpg",
-    title: "Match night intensity",
-    category: "Matches",
-    duration: "0:06",
-  },
-  {
-    id: "v-coaching",
-    src: "/videos/coaching.mp4",
-    poster: "/images/coaching.jpg",
-    title: "Little legs, big dreams",
-    category: "Community",
-    duration: "0:06",
-  },
-];
+import { fetchGalleryImages, fetchGalleryCategories, fetchGalleryHighlights } from "@/lib/api/gallery";
+import type { GalleryImage, GalleryCategory, GalleryHighlight } from "@/types/gallery";
 
 export function GalleryPage() {
   useDocumentTitle("Gallery");
-  const [filter, setFilter] = useState<Filter>("All");
+  const [categories, setCategories] = useState<GalleryCategory[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [highlights, setHighlights] = useState<GalleryHighlight[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // UUID
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const items =
-    filter === "All"
-      ? galleryItems
-      : galleryItems.filter((item) => item.category === filter);
+  // Fetch categories
+  useEffect(() => {
+    fetchGalleryCategories()
+      .then((data) => {
+        setCategories(data.results.filter((cat) => cat.is_active));
+      })
+      .catch(() => {
+        setCategories([]);
+      });
+  }, []);
 
-  const currentPhotoIndex = items.findIndex((item) => item.id === selectedId);
-  const currentPhoto = currentPhotoIndex >= 0 ? items[currentPhotoIndex] : null;
+  // Fetch highlights
+  useEffect(() => {
+    fetchGalleryHighlights()
+      .then((data) => {
+        setHighlights(data.results.filter((h) => h.is_active));
+      })
+      .catch(() => {
+        setHighlights([]);
+      });
+  }, []);
 
-  const showItem = (offset: 1 | -1) => {
-    if (currentPhotoIndex < 0 || items.length === 0) return;
-    const next = (currentPhotoIndex + offset + items.length) % items.length;
-    setSelectedId(items[next].id);
+  // Fetch images when category or page changes
+  useEffect(() => {
+    const isInitialLoad = page === 1;
+    if (isInitialLoad) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    fetchGalleryImages({
+      page,
+      category: selectedCategory || undefined,
+    })
+      .then((data) => {
+        if (page === 1) {
+          setImages(data.results);
+        } else {
+          setImages((prev) => [...prev, ...data.results]);
+        }
+        setHasMore(!!data.next);
+      })
+      .catch(() => {
+        if (page === 1) {
+          setImages([]);
+        }
+        setHasMore(false);
+      })
+      .finally(() => {
+        setLoading(false);
+        setLoadingMore(false);
+      });
+  }, [selectedCategory, page]);
+
+  // Reset to page 1 when category changes
+  const handleCategoryChange = (categoryId: string | null) => {
+    setSelectedCategory(categoryId);
+    setPage(1);
   };
 
-  const currentVideoIndex = galleryVideos.findIndex(
+  const handleLoadMore = () => {
+    setPage((prev) => prev + 1);
+  };
+
+  const currentPhotoIndex = images.findIndex((item) => item.id === selectedId);
+  const currentPhoto = currentPhotoIndex >= 0 ? images[currentPhotoIndex] : null;
+
+  const showItem = (offset: 1 | -1) => {
+    if (currentPhotoIndex < 0 || images.length === 0) return;
+    const next = (currentPhotoIndex + offset + images.length) % images.length;
+    setSelectedId(images[next].id);
+  };
+
+  const currentVideoIndex = highlights.findIndex(
     (video) => video.id === selectedVideoId,
   );
   const currentVideo =
-    currentVideoIndex >= 0 ? galleryVideos[currentVideoIndex] : null;
+    currentVideoIndex >= 0 ? highlights[currentVideoIndex] : null;
 
   const showVideo = (offset: 1 | -1) => {
-    if (currentVideoIndex < 0 || galleryVideos.length === 0) return;
+    if (currentVideoIndex < 0 || highlights.length === 0) return;
     const next =
-      (currentVideoIndex + offset + galleryVideos.length) %
-      galleryVideos.length;
-    setSelectedVideoId(galleryVideos[next].id);
+      (currentVideoIndex + offset + highlights.length) % highlights.length;
+    setSelectedVideoId(highlights[next].id);
   };
 
   return (
@@ -206,233 +136,267 @@ export function GalleryPage() {
         role="group"
         aria-label="Filter gallery"
       >
-        {FILTERS.map((option) => (
+        <Button
+          variant={selectedCategory === null ? "default" : "outline"}
+          size="sm"
+          className="cursor-pointer rounded-full"
+          onClick={() => handleCategoryChange(null)}
+        >
+          All
+        </Button>
+        {categories.map((cat) => (
           <Button
-            key={option}
-            variant={filter === option ? "default" : "outline"}
+            key={cat.id}
+            variant={selectedCategory === cat.id ? "default" : "outline"}
             size="sm"
             className="cursor-pointer rounded-full"
-            aria-pressed={filter === option}
-            onClick={() => setFilter(option)}
+            onClick={() => handleCategoryChange(cat.id)}
           >
-            {option === "Venue"
-              ? "Our Venue"
-              : option === "Matches"
-                ? "Match Nights"
-                : option}
+            {cat.name}
           </Button>
         ))}
       </div>
 
-      {/* Masonry grid */}
-      <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setSelectedId(item.id)}
-            aria-label={`View photo: ${item.title}`}
-            className={`group relative mb-4 block w-full cursor-pointer overflow-hidden rounded-2xl border break-inside-avoid ${item.aspect}`}
-          >
-            <img
-              src={item.src}
-              alt={item.title}
-              loading="lazy"
-              draggable={false}
-              className={`absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-105 ${item.imageClass ?? ""}`}
-            />
-            {/* Hover scrim + caption */}
-            <span className="from-black/0 via-black/0 to-black/60 absolute inset-0 bg-linear-to-t opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-            <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-              <span className="text-left">
-                <span className="block text-sm font-semibold text-white">
-                  {item.title}
-                </span>
-                <span className="block text-xs text-white/70">
-                  {item.category}
-                </span>
-              </span>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm">
-                <ExpandIcon className="size-4" aria-hidden="true" />
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Videos */}
-      <section className="mt-14">
-        <div className="mb-6 max-w-xl">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Highlights & clips
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Short clips from around the arena — press play.
+      {/* Loading state */}
+      {loading ? (
+        <div className="mt-12 flex flex-col items-center justify-center gap-3 py-16">
+          <LoaderCircleIcon
+            className="text-muted-foreground size-8 animate-spin"
+            aria-hidden="true"
+          />
+          <p className="text-muted-foreground text-sm">Loading gallery…</p>
+        </div>
+      ) : images.length === 0 ? (
+        <div className="mt-12 text-center">
+          <p className="text-muted-foreground text-sm">
+            No images found for this category.
           </p>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {galleryVideos.map((video) => (
-            <button
-              key={video.id}
-              type="button"
-              onClick={() => setSelectedVideoId(video.id)}
-              aria-label={`Play video: ${video.title}`}
-              className="group relative aspect-video w-full cursor-pointer overflow-hidden rounded-2xl border"
-            >
-              <img
-                src={video.poster}
-                alt=""
-                loading="lazy"
-                draggable={false}
-                className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-              <span className="from-black/0 via-black/10 to-black/60 absolute inset-0 bg-linear-to-t" />
-              {/* Play button */}
-              <span className="absolute inset-0 m-auto flex size-14 items-center justify-center rounded-full bg-white/90 text-primary shadow-lg transition-transform duration-300 group-hover:scale-110">
-                <PlayIcon
-                  className="size-6 translate-x-0.5 fill-current"
-                  aria-hidden="true"
+      ) : (
+        <>
+          {/* Gallery grid - Pinterest-style masonry */}
+          <div className="mt-8 columns-2 gap-3 sm:columns-3 lg:columns-4">
+            {images.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="group relative mb-3 block w-full overflow-hidden rounded-2xl border bg-muted transition-all hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => setSelectedId(item.id)}
+              >
+                <img
+                  src={item.image_url}
+                  alt={item.alt_text || item.title}
+                  loading="lazy"
+                  className="w-full transition-transform duration-300 group-hover:scale-105"
                 />
-              </span>
-              {/* Duration + caption */}
-              <span className="absolute top-3 right-3 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white tabular-nums backdrop-blur-sm">
-                {video.duration}
-              </span>
-              <span className="absolute inset-x-0 bottom-0 p-4 text-left">
-                <span className="block text-sm font-semibold text-white">
-                  {video.title}
-                </span>
-                <span className="block text-xs text-white/70">
-                  {video.category}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="absolute inset-x-0 bottom-0 translate-y-2 p-3 opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100">
+                  <p className="text-xs font-medium text-white drop-shadow">
+                    {item.title}
+                  </p>
+                  <p className="text-muted mt-0.5 text-[10px] text-white/80">
+                    {item.category_name}
+                  </p>
+                </div>
+                <div className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                  <ExpandIcon
+                    className="size-3.5 text-white"
+                    aria-hidden="true"
+                  />
+                </div>
+              </button>
+            ))}
+          </div>
 
-      {/* Photo lightbox */}
-      <Dialog
-        open={currentPhoto !== null}
-        onOpenChange={(open) => (!open ? setSelectedId(null) : undefined)}
-      >
-        <DialogContent className="sm:max-w-3xl">
-          {currentPhoto ? (
-            <>
-              <DialogTitle className="sr-only">
-                {currentPhoto.title}
-              </DialogTitle>
-              <img
-                src={currentPhoto.src}
-                alt={currentPhoto.title}
-                className="max-h-[70vh] w-full rounded-xl object-contain"
-                draggable={false}
-              />
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {currentPhoto.title}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {currentPhoto.category} · {currentPhotoIndex + 1} of{" "}
-                    {items.length}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8 cursor-pointer"
-                    aria-label="Previous photo"
-                    onClick={() => showItem(-1)}
-                  >
-                    <ChevronLeftIcon />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8 cursor-pointer"
-                    aria-label="Next photo"
-                    onClick={() => showItem(1)}
-                  >
-                    <ChevronRightIcon />
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+          {/* Load more button */}
+          {hasMore && (
+            <div className="mt-8 text-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="cursor-pointer"
+              >
+                {loadingMore ? (
+                  <>
+                    <LoaderCircleIcon
+                      className="mr-2 size-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Loading…
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
 
-      {/* Video lightbox */}
-      <Dialog
-        open={currentVideo !== null}
-        onOpenChange={(open) => (!open ? setSelectedVideoId(null) : undefined)}
-      >
-        <DialogContent className="sm:max-w-3xl">
-          {currentVideo ? (
-            <>
-              <DialogTitle className="sr-only">
-                {currentVideo.title}
-              </DialogTitle>
-              <video
-                key={currentVideo.id}
-                src={currentVideo.src}
-                poster={currentVideo.poster}
-                controls
-                autoPlay
-                playsInline
-                className="max-h-[70vh] w-full rounded-xl bg-black"
-              />
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {currentVideo.title}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {currentVideo.category} · {currentVideo.duration} ·{" "}
-                    {currentVideoIndex + 1} of {galleryVideos.length}
-                  </p>
+      {/* Highlights & clips */}
+      {highlights.length > 0 && (
+        <section className="mt-16">
+          <div className="mx-auto mb-6 max-w-2xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight">
+              Highlights & clips
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Short clips from around the arena — press play.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {highlights.map((video) => (
+              <button
+                key={video.id}
+                type="button"
+                className="group relative aspect-video overflow-hidden rounded-2xl border bg-muted transition-all hover:scale-[1.02] hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                onClick={() => setSelectedVideoId(video.id)}
+              >
+                <img
+                  src={video.thumbnail_url}
+                  alt={video.title}
+                  loading="lazy"
+                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/40 transition-opacity group-hover:bg-black/50" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex size-16 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-all group-hover:scale-110 group-hover:bg-white">
+                    <PlayIcon
+                      className="text-primary ml-0.5 size-7"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    />
+                  </div>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8 cursor-pointer"
-                    aria-label="Previous video"
-                    onClick={() => showVideo(-1)}
-                  >
-                    <ChevronLeftIcon />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8 cursor-pointer"
-                    aria-label="Next video"
-                    onClick={() => showVideo(1)}
-                  >
-                    <ChevronRightIcon />
-                  </Button>
+                <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/40 to-transparent p-4">
+                  <p className="text-sm font-medium text-white">
+                    {video.title}
+                  </p>
+                  {video.tags && (
+                    <p className="mt-1 text-xs text-white/70">{video.tags}</p>
+                  )}
                 </div>
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Closing CTA */}
-      <div className="mx-auto mt-6 max-w-2xl text-center">
-        <p className="text-sm font-semibold tracking-tight">
-          Pictures are nice. Playing is nicer.
-        </p>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Grab a slot, bring your squad and make your own highlight reel.
+      {/* CTA to bookings */}
+      <div className="mt-12 rounded-3xl border bg-gradient-to-br from-card via-card to-muted p-8 text-center shadow-sm">
+        <h2 className="text-xl font-bold tracking-tight">
+          Ready to play here?
+        </h2>
+        <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm">
+          Lock in your court time now — bookings are open, and the turf is
+          waiting.
         </p>
         <Button asChild className="mt-4 cursor-pointer">
-          <Link to="/bookings">Book a Slot</Link>
+          <Link to="/bookings">Book your slot</Link>
         </Button>
       </div>
+
+      {/* Lightbox for photos */}
+      <Dialog open={!!currentPhoto} onOpenChange={() => setSelectedId(null)}>
+        <DialogContent className="max-w-3xl p-0">
+          <DialogTitle className="sr-only">
+            {currentPhoto?.title || "Gallery image"}
+          </DialogTitle>
+          {currentPhoto && (
+            <div className="relative">
+              <img
+                src={currentPhoto.image_url}
+                alt={currentPhoto.alt_text || currentPhoto.title}
+                className="max-h-[80vh] w-auto max-w-full rounded-lg object-contain mx-auto"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/50 to-transparent p-6 text-white">
+                <h3 className="text-lg font-semibold">
+                  {currentPhoto.title}
+                </h3>
+                <p className="mt-1 text-sm text-white/80">
+                  {currentPhoto.category_name}
+                </p>
+              </div>
+              {images.length > 1 && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer rounded-full"
+                    onClick={() => showItem(-1)}
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeftIcon />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer rounded-full"
+                    onClick={() => showItem(1)}
+                    aria-label="Next image"
+                  >
+                    <ChevronRightIcon />
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox for videos */}
+      <Dialog open={!!currentVideo} onOpenChange={() => setSelectedVideoId(null)}>
+        <DialogContent className="max-w-xl p-0">
+          <DialogTitle className="sr-only">
+            {currentVideo?.title || "Video highlight"}
+          </DialogTitle>
+          {currentVideo && (
+            <div className="relative">
+              <video
+                key={currentVideo.id}
+                src={currentVideo.video_url}
+                controls
+                playsInline
+                className="w-full rounded-t-lg max-h-[70vh]"
+                poster={currentVideo.thumbnail_url}
+              >
+                Your browser does not support the video tag.
+              </video>
+              <div className="bg-card p-4 rounded-b-lg">
+                <h3 className="text-base font-semibold">{currentVideo.title}</h3>
+                {currentVideo.tags && (
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {currentVideo.tags}
+                  </p>
+                )}
+              </div>
+              {highlights.length > 1 && (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute left-4 top-1/3 -translate-y-1/2 cursor-pointer rounded-full shadow-lg"
+                    onClick={() => showVideo(-1)}
+                    aria-label="Previous video"
+                  >
+                    <ChevronLeftIcon />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-4 top-1/3 -translate-y-1/2 cursor-pointer rounded-full shadow-lg"
+                    onClick={() => showVideo(1)}
+                    aria-label="Next video"
+                  >
+                    <ChevronRightIcon />
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

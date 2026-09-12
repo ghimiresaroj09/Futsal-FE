@@ -15,6 +15,10 @@ export interface Futsal {
   /** "HH:mm:ss" */
   closing_time: string;
   status: "ACTIVE" | "INACTIVE" | string;
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  tiktok?: string;
   created_at: string;
   updated_at: string;
 }

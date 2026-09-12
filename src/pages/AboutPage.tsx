@@ -1,103 +1,77 @@
-import { useRef, type PointerEvent } from "react";
+import { useRef, useEffect, useState, type PointerEvent } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  HeartHandshakeIcon,
   SparklesIcon,
-  TrophyIcon,
   UsersIcon,
-  WalletIcon,
+  TagsIcon,
+  HandshakeIcon,
+  BuildingIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDocumentTitle } from "@/hooks/use-document-title";
 import { getInitials } from "@/lib/format";
+import { useFutsalStore } from "@/store/futsal-store";
+import { fetchAboutHeroSection } from "@/lib/api/about-hero";
+import { fetchAboutStorySection } from "@/lib/api/about-story";
+import { fetchAboutCommunitySection } from "@/lib/api/about-community";
+import type { AboutHeroSection } from "@/types/about-hero";
+import type { AboutStorySection } from "@/types/about-story";
+import type { AboutCommunitySection } from "@/types/about-community";
+import type { LucideIcon } from "lucide-react";
 
-const stats = [
-  { value: "8+", label: "Years in the game" },
-  { value: "20K+", label: "Matches hosted" },
-  { value: "150+", label: "Tournaments run" },
-  { value: "12K+", label: "Players in the community" },
-];
-
-const milestones = [
-  {
-    year: "2018",
-    title: "One court, one dream",
-    description:
-      "Nexus Futsal opens in Balaju Height with a single court and a borrowed mower.",
-    image: "/images/venue-indoor.jpg",
-  },
-  {
-    year: "2021",
-    title: "The second court",
-    description:
-      "We double down — a second floodlit court, locker rooms and hot showers.",
-    image: "/images/venue-outdoor.jpg",
-  },
-  {
-    year: "2024",
-    title: "Leagues & coaching",
-    description:
-      "Regular tournaments, kids coaching and corporate nights become part of the week.",
-    image: "/images/coaching.jpg",
-  },
-  {
-    year: "2026",
-    title: "Book online, play more",
-    description:
-      "Real-time online booking launches — your slot is confirmed in seconds.",
-    image: "/images/hero.jpg",
-  },
-];
-
-const values = [
-  {
-    icon: HeartHandshakeIcon,
-    title: "Community first",
-    description:
-      "We're run by players, for players — regulars, rookies and everyone between.",
-  },
-  {
-    icon: SparklesIcon,
-    title: "Facilities without compromise",
-    description:
-      "FIFA-quality turf, clean showers, honest gear. The arena is match-ready, always.",
-  },
-  {
-    icon: TrophyIcon,
-    title: "Fair play, seriously",
-    description:
-      "Transparent slots, transparent prices, free rescheduling. No games off the pitch.",
-  },
-  {
-    icon: WalletIcon,
-    title: "Priced for everyone",
-    description:
-      "Morning rates that students can split, prime hours worth every rupee.",
-  },
-];
-
-const communityPoints = [
-  "Weekly leagues for every level — from beginners to the A-division crowd",
-  "Kids coaching on weekend mornings with qualified trainers",
-  "Corporate tournaments and team-building nights",
-  "Open scrimmage nights where solo players find a squad",
-];
-
-const team = [
-  { name: "Saroj Ghimire", role: "Founder & Owner" },
-  { name: "Anisha Karki", role: "Arena Manager" },
-  { name: "Bikash Shrestha", role: "Head Coach" },
-  { name: "Rita Tamang", role: "Operations" },
-];
+// Map Font Awesome icon codes to Lucide icons
+const iconMap: Record<string, LucideIcon> = {
+  "fa-solid fa-tags": TagsIcon,
+  "fa-solid fa-handshake": HandshakeIcon,
+  "fa-solid fa-building": BuildingIcon,
+  "fa-solid fa-people-group": UsersIcon,
+};
 
 export function AboutPage() {
   useDocumentTitle("About Us");
+  const futsal = useFutsalStore((s) => s.futsal);
+  const [heroData, setHeroData] = useState<AboutHeroSection | null>(null);
+  const [storyData, setStoryData] = useState<AboutStorySection | null>(null);
+  const [communityData, setCommunityData] = useState<AboutCommunitySection | null>(null);
+  const [loading, setLoading] = useState(true);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Fetch all sections together
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      fetchAboutHeroSection(),
+      fetchAboutStorySection(),
+      fetchAboutCommunitySection(),
+    ])
+      .then(([hero, story, community]) => {
+        if (!cancelled) {
+          setHeroData(hero);
+          setStoryData(story);
+          setCommunityData(community);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHeroData(null);
+          setStoryData(null);
+          setCommunityData(null);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scrollTimeline = (direction: 1 | -1) => {
     const el = timelineRef.current;
@@ -119,7 +93,6 @@ export function AboutPage() {
 
   const stopMomentum = () => cancelAnimationFrame(momentum.current);
 
-  /** Ease the strip to the nearest card after momentum dies out. */
   const settleToNearest = () => {
     const el = timelineRef.current;
     if (!el || !el.children.length) return;
@@ -133,7 +106,6 @@ export function AboutPage() {
     el.scrollTo({ left: nearest.offsetLeft, behavior: "smooth" });
   };
 
-  /** Keep scrolling with decaying velocity — the "fling" inertia. */
   const startMomentum = () => {
     let velocity = drag.current.velocity;
     const step = () => {
@@ -147,7 +119,7 @@ export function AboutPage() {
       const before = el.scrollLeft;
       el.scrollLeft = before + velocity;
       if (el.scrollLeft === before) {
-        settleToNearest(); // hit the start/end edge
+        settleToNearest();
         return;
       }
       momentum.current = requestAnimationFrame(step);
@@ -156,7 +128,7 @@ export function AboutPage() {
   };
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== "mouse") return; // touch devices keep native scrolling
+    if (e.pointerType !== "mouse") return;
     const el = timelineRef.current;
     if (!el) return;
     stopMomentum();
@@ -176,7 +148,7 @@ export function AboutPage() {
     if (!el || !drag.current.down) return;
     const dx = e.clientX - drag.current.lastX;
     drag.current.lastX = e.clientX;
-    drag.current.velocity = 0.8 * drag.current.velocity + 0.2 * dx; // smoothed
+    drag.current.velocity = 0.8 * drag.current.velocity + 0.2 * dx;
     if (Math.abs(e.clientX - drag.current.startX) > 8)
       drag.current.moved = true;
     el.scrollLeft =
@@ -190,13 +162,122 @@ export function AboutPage() {
     else settleToNearest();
   };
 
+  if (loading || !heroData || !storyData || !communityData) {
+    return (
+      <div className="mx-auto w-full max-w-7xl space-y-16 px-4 py-10 md:px-6">
+        {/* Hero skeleton */}
+        <section className="relative overflow-hidden rounded-3xl">
+          <Skeleton className="h-64 w-full sm:h-80" />
+        </section>
+
+        {/* Stats skeleton */}
+        <section className="border-y">
+          <dl className="grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="text-center">
+                <Skeleton className="mx-auto h-8 w-20 mb-2" />
+                <Skeleton className="mx-auto h-4 w-32" />
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* Story skeleton */}
+        <section className="grid items-center gap-10 lg:grid-cols-2">
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-5/6" />
+            </div>
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <div className="flex gap-1.5">
+                  <Skeleton className="size-8" />
+                  <Skeleton className="size-8" />
+                </div>
+              </div>
+              <div className="flex gap-5 overflow-hidden">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48 w-80 shrink-0 rounded-2xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+          <Skeleton className="aspect-[4/3] w-full rounded-3xl" />
+        </section>
+
+        {/* Values skeleton */}
+        <section>
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <Skeleton className="mx-auto h-4 w-32 mb-2" />
+            <Skeleton className="mx-auto h-10 w-64" />
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="gap-3 rounded-2xl py-5">
+                <CardContent className="px-5">
+                  <Skeleton className="size-11 rounded-xl mb-3" />
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* Community skeleton */}
+        <section className="grid items-center gap-10 lg:grid-cols-2">
+          <Skeleton className="aspect-[4/3] w-full rounded-3xl order-2 lg:order-1" />
+          <div className="order-1 space-y-5 lg:order-2">
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-5/6" />
+            </div>
+            <div className="space-y-2.5">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-5 w-full" />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Team skeleton */}
+        <section>
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <Skeleton className="mx-auto h-4 w-20 mb-2" />
+            <Skeleton className="mx-auto h-10 w-64 mb-2" />
+            <Skeleton className="mx-auto h-4 w-96" />
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="items-center gap-3 rounded-2xl py-6 text-center">
+                <Skeleton className="size-16 rounded-full mx-auto mb-2" />
+                <Skeleton className="h-5 w-24 mx-auto mb-1" />
+                <Skeleton className="h-4 w-20 mx-auto" />
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA skeleton */}
+        <Skeleton className="h-64 w-full rounded-3xl" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-16 px-4 py-10 md:px-6">
       {/* Hero banner */}
       <section className="relative overflow-hidden rounded-3xl">
         <img
-          src="/images/action-2.jpg"
-          alt="Players celebrating together at Nexus Futsal"
+          src={heroData.image_url}
+          alt={`About ${futsal?.name || "our futsal"}`}
           className="absolute inset-0 size-full object-cover"
         />
         <div className="from-primary/90 via-primary/70 to-primary/30 absolute inset-0 bg-linear-to-r" />
@@ -205,13 +286,10 @@ export function AboutPage() {
             About us
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
-            More than a court.{" "}
-            <span className="text-white/70">A community.</span>
+            {heroData.title}
           </h1>
           <p className="text-sm text-balance opacity-90 sm:text-base">
-            Since 2018, Nexus Futsal has been Kathmandu's home of futsal — two
-            meticulously kept courts, floodlights that never quit, and a
-            community that shows up every single week.
+            {heroData.description}
           </p>
         </div>
       </section>
@@ -219,107 +297,138 @@ export function AboutPage() {
       {/* Stats */}
       <section className="border-y">
         <dl className="grid grid-cols-2 gap-6 py-8 md:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <dd className="text-primary text-2xl font-bold tracking-tight">
-                {stat.value}
-              </dd>
-              <dt className="text-muted-foreground mt-1 text-xs">
-                {stat.label}
-              </dt>
-            </div>
-          ))}
+          <div className="text-center">
+            <dd className="text-primary text-2xl font-bold tracking-tight">
+              {heroData.years_in_game}
+            </dd>
+            <dt className="text-muted-foreground mt-1 text-xs">
+              Years in the game
+            </dt>
+          </div>
+          <div className="text-center">
+            <dd className="text-primary text-2xl font-bold tracking-tight">
+              {heroData.matches_hosted}
+            </dd>
+            <dt className="text-muted-foreground mt-1 text-xs">
+              Matches hosted
+            </dt>
+          </div>
+          <div className="text-center">
+            <dd className="text-primary text-2xl font-bold tracking-tight">
+              {heroData.tournaments_run}
+            </dd>
+            <dt className="text-muted-foreground mt-1 text-xs">
+              Tournaments run
+            </dt>
+          </div>
+          <div className="text-center">
+            <dd className="text-primary text-2xl font-bold tracking-tight">
+              {heroData.players_in_community}
+            </dd>
+            <dt className="text-muted-foreground mt-1 text-xs">
+              Players in the community
+            </dt>
+          </div>
         </dl>
       </section>
 
-      {/* Our story — dark scrollable timeline */}
-      <section className="space-y-8">
-        <div className="max-w-2xl space-y-3">
-          <p className="text-primary text-sm font-semibold tracking-wide uppercase">
-            Our story
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight text-balance">
-            Built by players, for players
-          </h2>
-          <p className="text-muted-foreground leading-relaxed">
-            It started with one court, one dream and a lot of late evenings
-            rolling turf. Eight years later we host everything from 6 AM
-            kickabouts to cup finals under the floodlights — scroll through the
-            moments that got us here.
-          </p>
+      {/* Our story */}
+      <section className="grid items-center gap-10 lg:grid-cols-2">
+        <div className="space-y-8">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-primary text-sm font-semibold tracking-wide uppercase">
+              Our story
+            </p>
+            <h2 className="text-3xl font-bold tracking-tight text-balance">
+              {storyData.title}
+            </h2>
+            <p className="text-muted-foreground leading-relaxed">
+              {storyData.description}
+            </p>
+          </div>
+
+          <div>
+            {/* Header + arrow controls */}
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">The journey so far</h3>
+              <div className="flex gap-1.5">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Scroll timeline back"
+                  onClick={() => scrollTimeline(-1)}
+                >
+                  <ChevronLeftIcon />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Scroll timeline forward"
+                  onClick={() => scrollTimeline(1)}
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </div>
+            </div>
+
+            {/* Draggable scroller */}
+            <div
+              ref={timelineRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={endDrag}
+              onPointerLeave={endDrag}
+              onPointerCancel={endDrag}
+              onDragStart={(e) => e.preventDefault()}
+              className="flex cursor-grab gap-5 overflow-x-auto pb-2 select-none active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {storyData.journey.map((milestone, index) => (
+                <article
+                  key={milestone.year}
+                  className="w-[300px] shrink-0 rounded-2xl border bg-card p-4 shadow-sm sm:w-[360px]"
+                >
+                  <div className="flex flex-col items-center gap-4 sm:flex-row">
+                    <img
+                      src={milestone.image}
+                      alt={milestone.title}
+                      loading="lazy"
+                      draggable={false}
+                      className={`h-44 w-full shrink-0 rounded-xl object-cover sm:h-36 sm:w-32 ${
+                        index % 2 === 1 ? "sm:order-2" : ""
+                      }`}
+                    />
+                    <div className={index % 2 === 1 ? "sm:order-1" : ""}>
+                      <p className="text-primary text-xs font-bold tracking-wide">
+                        {milestone.year}
+                      </p>
+                      <h4 className="mt-1 text-sm font-semibold">
+                        {milestone.title}
+                      </h4>
+                      <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
+                        {milestone.description}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <p className="mt-2 text-xs text-muted-foreground/60">
+              Drag the cards or use the arrows — the story continues →
+            </p>
+          </div>
         </div>
 
-        <div>
-          {/* Header + arrow controls */}
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">The journey so far</h3>
-            <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                aria-label="Scroll timeline back"
-                onClick={() => scrollTimeline(-1)}
-              >
-                <ChevronLeftIcon />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8"
-                aria-label="Scroll timeline forward"
-                onClick={() => scrollTimeline(1)}
-              >
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </div>
-
-          {/* Draggable scroller */}
-          <div
-            ref={timelineRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={endDrag}
-            onPointerLeave={endDrag}
-            onPointerCancel={endDrag}
-            onDragStart={(e) => e.preventDefault()}
-            className="flex cursor-grab gap-5 overflow-x-auto pb-2 select-none active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {milestones.map((milestone, index) => (
-              <article
-                key={milestone.year}
-                className="w-[300px] shrink-0 rounded-2xl border bg-card p-4 shadow-sm sm:w-[360px]"
-              >
-                <div className="flex flex-col items-center gap-4 sm:flex-row">
-                  <img
-                    src={milestone.image}
-                    alt={milestone.title}
-                    loading="lazy"
-                    draggable={false}
-                    className={`h-44 w-full shrink-0 rounded-xl object-cover sm:h-36 sm:w-32 ${
-                      index % 2 === 1 ? "sm:order-2" : ""
-                    }`}
-                  />
-                  <div className={index % 2 === 1 ? "sm:order-1" : ""}>
-                    <p className="text-primary text-xs font-bold tracking-wide">
-                      {milestone.year}
-                    </p>
-                    <h4 className="mt-1 text-sm font-semibold">
-                      {milestone.title}
-                    </h4>
-                    <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
-                      {milestone.description}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <p className="mt-2 text-xs text-muted-foreground/60">
-            Drag the cards or use the arrows — the story continues →
-          </p>
+        {/* Story image on the right */}
+        <div className="relative">
+          <img
+            src={storyData.image_url}
+            alt={`Team at ${futsal?.name || "our futsal"}`}
+            loading="lazy"
+            className="aspect-[4/3] w-full rounded-3xl border object-cover shadow-lg"
+          />
         </div>
       </section>
 
@@ -334,22 +443,26 @@ export function AboutPage() {
           </h2>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {values.map((value) => (
-            <Card
-              key={value.title}
-              className="gap-3 rounded-2xl py-5 transition-shadow hover:shadow-md"
-            >
-              <CardContent className="px-5">
-                <div className="bg-primary/10 text-primary mb-3 flex size-11 items-center justify-center rounded-xl">
-                  <value.icon className="size-5" aria-hidden="true" />
-                </div>
-                <h3 className="text-base font-semibold">{value.title}</h3>
-                <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-                  {value.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+          {communityData.rules.map((value) => {
+            const IconComponent = iconMap[value.iconcode] || SparklesIcon;
+            
+            return (
+              <Card
+                key={value.title}
+                className="gap-3 rounded-2xl py-5 transition-shadow hover:shadow-md"
+              >
+                <CardContent className="px-5">
+                  <div className="bg-primary/10 text-primary mb-3 flex size-11 items-center justify-center rounded-xl">
+                    <IconComponent className="size-5" aria-hidden="true" />
+                  </div>
+                  <h3 className="text-base font-semibold">{value.title}</h3>
+                  <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                    {value.description}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
@@ -357,8 +470,8 @@ export function AboutPage() {
       <section className="grid items-center gap-10 lg:grid-cols-2">
         <div className="relative order-2 lg:order-1">
           <img
-            src="/images/coaching.jpg"
-            alt="Coaching session with young players at Nexus Futsal"
+            src={communityData.image_url}
+            alt={`Community at ${futsal?.name || "our futsal"}`}
             loading="lazy"
             className="aspect-[4/3] w-full rounded-3xl border object-cover shadow-lg"
           />
@@ -369,16 +482,14 @@ export function AboutPage() {
               Community
             </p>
             <h2 className="text-3xl font-bold tracking-tight text-balance">
-              The arena fills up long before kickoff
+              {communityData.title}
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              Futsal is a team game on and off the pitch. Our weeks are packed
-              with leagues, coaching and nights where strangers leave as
-              teammates.
+              {communityData.description}
             </p>
           </div>
           <ul className="space-y-2.5">
-            {communityPoints.map((point) => (
+            {communityData.features.map((point) => (
               <li
                 key={point}
                 className="text-muted-foreground flex items-start gap-2.5 text-sm"
@@ -408,12 +519,15 @@ export function AboutPage() {
           </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {team.map((member) => (
+          {communityData.team.map((member) => (
             <Card
               key={member.name}
               className="items-center gap-3 rounded-2xl py-6 text-center"
             >
               <Avatar className="size-16">
+                {member.image && (
+                  <AvatarImage src={member.image} alt={member.name} />
+                )}
                 <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
                   {getInitials(member.name)}
                 </AvatarFallback>

@@ -120,7 +120,6 @@ export function ResetPasswordPage() {
     <AuthShell
       title="Reset password"
       subtitle={`Set a new password for ${email}.`}
-      image="/images/venue-outdoor.jpg"
       imageAlt="Nexus Futsal outdoor court"
       footer={
         <p className="text-muted-foreground">

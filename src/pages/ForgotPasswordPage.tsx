@@ -72,7 +72,6 @@ export function ForgotPasswordPage() {
     <AuthShell
       title="Forgot your password?"
       subtitle="No worries — enter your email and we'll send you a 6-digit code to reset it."
-      image="/images/venue-rooftop.jpg"
       imageAlt="Nexus Futsal rooftop court at golden hour"
       footer={
         <p className="text-muted-foreground">

@@ -159,7 +159,6 @@ export function SignUpPage() {
     <AuthShell
       title="Create your account"
       subtitle="Join Nexus FMS and book your futsal slots in seconds."
-      image="/images/action-2.jpg"
       imageAlt="Players celebrating a match at Nexus Futsal"
       footer={
         <p className="text-muted-foreground">

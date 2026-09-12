@@ -247,7 +247,6 @@ export function OtpVerificationPage() {
     <AuthShell
       title="Verify your code"
       subtitle={`Enter the 6-digit code we sent to ${email}.`}
-      image="/images/action-1.jpg"
       imageAlt="Player skills on the Nexus Futsal court"
       footer={
         <p className="text-muted-foreground">

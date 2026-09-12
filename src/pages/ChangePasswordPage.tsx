@@ -130,7 +130,6 @@ export function ChangePasswordPage() {
     <AuthShell
       title="Change password"
       subtitle="Enter your current password and pick a new one."
-      image="/images/venue-indoor.jpg"
       imageAlt="Nexus Futsal indoor court"
       footer={
         <button

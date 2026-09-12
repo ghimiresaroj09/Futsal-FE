@@ -1,9 +1,12 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import { Logo } from "@/components/common/Logo";
 import { publicNavItems } from "@/config/nav";
 import { useFutsalStore } from "@/store/futsal-store";
+import { fetchHeroSection } from "@/lib/api/hero";
+import type { HeroSection } from "@/types/hero";
 
 /** Brand icons (lucide no longer ships these) — stroke styled to match lucide. */
 function FacebookIcon() {
@@ -55,14 +58,66 @@ function XIcon() {
   );
 }
 
-const socials = [
-  { label: "Facebook", href: "#", icon: FacebookIcon },
-  { label: "Instagram", href: "#", icon: InstagramIcon },
-  { label: "X (Twitter)", href: "#", icon: XIcon },
-];
+function TikTokIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="size-4"
+      aria-hidden="true"
+    >
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  );
+}
 
 export function Footer() {
   const futsal = useFutsalStore((s) => s.futsal);
+  const [heroData, setHeroData] = useState<HeroSection | null>(null);
+
+  // Fetch hero section for description
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchHeroSection()
+      .then((data) => {
+        if (!cancelled) {
+          setHeroData(data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHeroData(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const socials = [
+    { 
+      label: "Facebook", 
+      href: futsal?.facebook || "https://www.facebook.com/", 
+      icon: FacebookIcon,
+    },
+    { 
+      label: "Instagram", 
+      href: futsal?.instagram || "https://www.instagram.com/", 
+      icon: InstagramIcon,
+    },
+    { 
+      label: "X (Twitter)", 
+      href: futsal?.twitter || "https://www.x.com/", 
+      icon: XIcon,
+    },
+    { 
+      label: "TikTok", 
+      href: futsal?.tiktok || "https://www.tiktok.com/", 
+      icon: TikTokIcon,
+    },
+  ];
   return (
     <footer className="border-t bg-background">
       <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 md:grid-cols-3 md:px-6">
@@ -70,14 +125,15 @@ export function Footer() {
         <div className="space-y-4 md:pr-8">
           <Logo />
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Kathmandu's home of futsal — two premium courts, real-time online
-            booking and a community that lives for the game.
+            {heroData?.description || "Kathmandu's home of futsal — two premium courts, real-time online booking and a community that lives for the game."}
           </p>
           <div className="flex items-center gap-2">
             {socials.map((social) => (
               <a
                 key={social.label}
                 href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label={social.label}
                 className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-9 items-center justify-center rounded-md transition-colors"
               >
@@ -128,7 +184,7 @@ export function Footer() {
 
       <div className="border-t">
         <div className="text-muted-foreground mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs sm:flex-row md:px-6">
-          <p>© {new Date().getFullYear()} Nexus FMS. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {futsal?.name || "Nexus FMS"}. All rights reserved.</p>
           <p>Book. Play. Repeat. ⚽</p>
         </div>
       </div>

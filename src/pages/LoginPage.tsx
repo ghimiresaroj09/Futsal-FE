@@ -113,7 +113,6 @@ export function LoginPage() {
     <AuthShell
       title="Welcome back"
       subtitle="Log in to book your next match at Nexus Futsal."
-      image="/images/venue-indoor.jpg"
       imageAlt="Nexus Futsal indoor court"
       footer={
         <p className="text-muted-foreground">

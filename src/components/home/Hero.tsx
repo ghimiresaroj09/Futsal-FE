@@ -3,22 +3,19 @@ import { ArrowRightIcon, ClockIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { fetchSlotsForDate } from "@/lib/api/slots";
+import { fetchHeroSection } from "@/lib/api/hero";
 import { formatTime12h } from "@/lib/format";
 import { isSlotStarted, toDateKey } from "@/lib/slots";
 import { useFutsalStore } from "@/store/futsal-store";
+import type { HeroSection } from "@/types/hero";
 
 /** "HH:mm:ss" → minutes past midnight. */
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":");
   return Number(hours) * 60 + Number(minutes ?? 0);
 }
-
-const heroStats = [
-  { value: "2", label: "Premium courts" },
-  { value: "20K+", label: "Matches hosted" },
-  { value: "6AM–10PM", label: "Open every day" },
-];
 
 /**
  * Home hero: headline + CTAs left, arena photo with a floating
@@ -27,11 +24,36 @@ const heroStats = [
  */
 export function Hero() {
   const futsal = useFutsalStore((s) => s.futsal);
+  const [heroData, setHeroData] = useState<HeroSection | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Ticking clock so the open/closed status stays honest while the page
   // sits open (checked every 30s).
   const [now, setNow] = useState(() => new Date());
   const [nextSlot, setNextSlot] = useState<string | null>(null);
+
+  // Fetch hero section data
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchHeroSection()
+      .then((data) => {
+        if (!cancelled) {
+          setHeroData(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHeroData(null);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -45,7 +67,6 @@ export function Hero() {
     fetchSlotsForDate(dateKey)
       .then((result) => {
         if (cancelled) return;
-        // If closed or no slots, nextSlot stays null
         if (result.isClosed || result.slots.length === 0) {
           setNextSlot(null);
           return;
@@ -72,24 +93,54 @@ export function Hero() {
     nowMinutes >= timeToMinutes(openingTime) &&
     nowMinutes < timeToMinutes(closingTime);
 
+  if (loading || !heroData) {
+    return (
+      <section className="relative">
+        <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-4 py-16 md:px-6 lg:grid-cols-2 lg:py-24">
+          {/* Copy skeleton */}
+          <div className="space-y-6">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-6 w-2/3" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Skeleton className="h-12 w-full sm:w-32" />
+              <Skeleton className="h-12 w-full sm:w-32" />
+            </div>
+          </div>
+
+          {/* Visual skeleton */}
+          <div className="relative">
+            <Skeleton className="aspect-[4/3] w-full rounded-3xl" />
+            <Skeleton className="absolute -bottom-5 left-4 h-16 w-64 rounded-xl sm:left-8" />
+          </div>
+        </div>
+
+        {/* Stats skeleton */}
+        <div className="relative z-10 mx-auto -mb-10 w-full max-w-5xl px-4 md:px-6">
+          <div className="bg-card grid grid-cols-1 gap-4 rounded-2xl border p-4 shadow-lg sm:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative">
       <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-4 py-16 md:px-6 lg:grid-cols-2 lg:py-24">
         {/* Copy */}
         <div className="space-y-6">
-          <span className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold">
-            ⚽{" "}
-            {futsal
-              ? `${futsal.name} — home of futsal`
-              : "Kathmandu's home of futsal"}
-          </span>
           <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-            Book your slot. <span className="text-primary">Own the game.</span>
+            {heroData.title_one}{" "}
+            <span className="text-primary">{heroData.title_two}</span>
           </h1>
           <p className="text-muted-foreground max-w-xl text-lg text-balance">
-            Premium turf, floodlights and locker rooms at Nexus Futsal — reserve
-            your hour online in seconds, gather your squad and just show up to
-            play.
+            {heroData.description}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button asChild size="lg" className="w-full sm:w-auto">
@@ -108,8 +159,8 @@ export function Hero() {
         <div className="relative">
           <div className="border border-border/60 bg-card overflow-hidden rounded-3xl shadow-xl shadow-black/5">
             <img
-              src="/images/hero.jpg"
-              alt="Players in a mid-match action on the Nexus Futsal court"
+              src={heroData.image_url}
+              alt={`Players in a mid-match action at ${futsal?.name || "Nexus Futsal"} court`}
               className="aspect-[4/3] w-full object-cover"
             />
           </div>
@@ -147,21 +198,28 @@ export function Hero() {
         </div>
       </div>
 
-      {/* Floating stats card — overlaps into the next section */}
+      {/* Floating stats card */}
       <div className="relative z-10 mx-auto -mb-10 w-full max-w-5xl px-4 md:px-6">
-        <dl className="bg-card grid grid-cols-1 divide-y divide-border rounded-2xl border p-2 shadow-lg shadow-primary/5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:p-4">
-          {heroStats.map((stat) => (
-            <div
-              key={stat.label}
-              className="flex flex-col items-center gap-0.5 px-4 py-3 text-center"
-            >
-              <dd className="text-primary text-xl font-bold tracking-tight">
-                {stat.value}
-              </dd>
-              <dt className="text-muted-foreground text-xs">{stat.label}</dt>
-            </div>
-          ))}
-        </dl>
+        {(() => {
+          const stats = heroData.stats;
+          const gridCols = stats.length === 2 ? "sm:grid-cols-2" : stats.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3";
+          
+          return (
+            <dl className={`bg-card grid grid-cols-1 divide-y divide-border rounded-2xl border p-2 shadow-lg shadow-primary/5 ${gridCols} sm:divide-x sm:divide-y-0 sm:p-4`}>
+              {stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex flex-col items-center gap-0.5 px-4 py-3 text-center"
+                >
+                  <dd className="text-primary text-xl font-bold tracking-tight">
+                    {stat.value}
+                  </dd>
+                  <dt className="text-muted-foreground text-xs">{stat.label}</dt>
+                </div>
+              ))}
+            </dl>
+          );
+        })()}
       </div>
     </section>
   );

@@ -2,37 +2,13 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getInitials } from "@/lib/format";
-
-const testimonials = [
-  {
-    quote:
-      "Our squad books the Tuesday 8 PM slot every week. Takes 30 seconds, the turf is always in perfect shape, and the showers are a bonus.",
-    name: "Sujan Tamang",
-    role: "Captain · Kathmandu Kickers",
-  },
-  {
-    quote:
-      "We hosted our company tournament here — bookings, fixtures and the trophy ceremony all handled smoothly. The team genuinely cares.",
-    name: "Priya Shrestha",
-    role: "Organiser · Corporate League",
-  },
-  {
-    quote:
-      "I've been playing here for three years. Best-maintained court in the valley, and the coaching sessions leveled up my son's game.",
-    name: "Kamal Gurung",
-    role: "Weekly regular",
-  },
-  {
-    quote:
-      "Clean facilities, honest pricing and a booking system that actually works. This is how every futsal should be run.",
-    name: "Bibek Maharjan",
-    role: "Sunday league player",
-  },
-];
+import { fetchTestimonials } from "@/lib/api/testimonials";
+import type { Testimonial } from "@/types/testimonial";
 
 /** Visual position of a card in the pile: 0 = front, 1/2 = peeking behind. */
 const LAYER_TRANSFORMS = [
@@ -58,22 +34,92 @@ function layerStyle(depth: number, total: number): CSSProperties {
  * the next two peek out behind it. Click a card to bring it to the front.
  */
 export function Testimonials() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const total = testimonials.length;
 
+  // Fetch testimonials from API
+  useEffect(() => {
+    let cancelled = false;
+    
+    fetchTestimonials()
+      .then((data) => {
+        if (!cancelled) {
+          setTestimonials(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTestimonials([]);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const goTo = (next: number) => setIndex(((next % total) + total) % total);
 
-  // Auto-advance every 7s; manual navigation restarts the timer.
+  // Auto-advance every 7s
   useEffect(() => {
+    if (total === 0) return;
     const timer = setInterval(() => setIndex((i) => (i + 1) % total), 7000);
     return () => clearInterval(timer);
   }, [index, total]);
 
   const handleCardClick = (cardIndex: number) => {
-    // Clicking the front card deals the next one; clicking a back card
-    // pulls that specific card out of the pile.
     goTo(cardIndex === index ? index + 1 : cardIndex);
   };
+
+  if (loading) {
+    return (
+      <section className="mx-auto w-full max-w-7xl px-4 py-14 md:px-6">
+        <div className="mx-auto mb-10 max-w-2xl text-center">
+          <Skeleton className="mx-auto h-4 w-24 mb-2" />
+          <Skeleton className="mx-auto h-10 w-64" />
+        </div>
+
+        <div className="relative mx-auto h-[300px] max-w-xl sm:h-[280px]">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="absolute inset-x-0 top-0 transition-all duration-300"
+              style={layerStyle(i, 3)}
+            >
+              <Card className="overflow-hidden rounded-xl border shadow-lg">
+                <div className="bg-primary h-1 w-full" />
+                <CardContent className="flex flex-col items-center gap-3 p-5 text-center sm:p-6">
+                  <Skeleton className="h-16 w-full" />
+                  <div className="flex items-center gap-2.5">
+                    <Skeleton className="size-9 rounded-full" />
+                    <div className="space-y-1">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <Skeleton className="size-8 rounded-full" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="size-8 rounded-full" />
+        </div>
+      </section>
+    );
+  }
+
+  // Don't render if no testimonials
+  if (total === 0) {
+    return null;
+  }
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-14 md:px-6">
@@ -97,12 +143,12 @@ export function Testimonials() {
 
           return (
             <div
-              key={testimonial.name}
+              key={testimonial.id}
               className="absolute inset-x-0 top-0 cursor-pointer transition-all duration-300 ease-out focus-visible:outline-none"
               style={layerStyle(depth, total)}
               role="button"
               tabIndex={depth <= 2 ? 0 : -1}
-              aria-label={`Testimonial from ${testimonial.name}${depth === 0 ? " (top of stack)" : ""}`}
+              aria-label={`Testimonial from ${testimonial.full_name}${depth === 0 ? " (top of stack)" : ""}`}
               onClick={() => handleCardClick(cardIndex)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -117,21 +163,27 @@ export function Testimonials() {
 
                 <CardContent className="flex flex-col items-center gap-3 p-5 text-center sm:p-6">
                   <blockquote className="text-sm leading-relaxed text-balance sm:text-base">
-                    &ldquo;{testimonial.quote}&rdquo;
+                    {testimonial.content}
                   </blockquote>
 
                   <div className="flex items-center gap-2.5">
                     <Avatar className="size-9">
+                      {testimonial.image_url && (
+                        <AvatarImage 
+                          src={testimonial.image_url} 
+                          alt={testimonial.full_name}
+                        />
+                      )}
                       <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
-                        {getInitials(testimonial.name)}
+                        {getInitials(testimonial.full_name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="text-left">
                       <p className="text-sm font-semibold">
-                        {testimonial.name}
+                        {testimonial.full_name}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {testimonial.role}
+                        {testimonial.title}
                       </p>
                     </div>
                   </div>
