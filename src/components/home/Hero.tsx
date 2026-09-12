@@ -31,6 +31,8 @@ export function Hero() {
   // sits open (checked every 30s).
   const [now, setNow] = useState(() => new Date());
   const [nextSlot, setNextSlot] = useState<string | null>(null);
+  const [isClosed, setIsClosed] = useState(false);
+  const [closureReason, setClosureReason] = useState<string | null>(null);
 
   // Fetch hero section data
   useEffect(() => {
@@ -67,10 +69,23 @@ export function Hero() {
     fetchSlotsForDate(dateKey)
       .then((result) => {
         if (cancelled) return;
-        if (result.isClosed || result.slots.length === 0) {
+        
+        // Check if facility is closed
+        if (result.isClosed) {
+          setIsClosed(true);
+          setClosureReason(result.closureReason || "Closed today");
           setNextSlot(null);
           return;
         }
+        
+        setIsClosed(false);
+        setClosureReason(null);
+        
+        if (result.slots.length === 0) {
+          setNextSlot(null);
+          return;
+        }
+        
         const free = result.slots.find(
           (slot) =>
             slot.status === "AVAILABLE" &&
@@ -79,7 +94,11 @@ export function Hero() {
         setNextSlot(free ? formatTime12h(free.start_time) : null);
       })
       .catch(() => {
-        if (!cancelled) setNextSlot(null);
+        if (!cancelled) {
+          setNextSlot(null);
+          setIsClosed(false);
+          setClosureReason(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -168,7 +187,9 @@ export function Hero() {
           {/* Floating live-status chip */}
           <div className="border bg-card/95 text-card-foreground absolute -bottom-5 left-4 flex items-center gap-2.5 rounded-xl border-border/60 px-3.5 py-2.5 shadow-lg backdrop-blur sm:left-8">
             <span className="relative flex size-2.5">
-              {isOpen ? (
+              {isClosed ? (
+                <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+              ) : isOpen ? (
                 <>
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
                   <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
@@ -178,20 +199,33 @@ export function Hero() {
               )}
             </span>
             <div className="text-xs">
-              <p
-                className={
-                  isOpen ? "font-semibold" : "text-red-600 font-semibold"
-                }
-              >
-                {isOpen
-                  ? `Open now · closes ${formatTime12h(closingTime)}`
-                  : `Closed now · opens ${formatTime12h(openingTime)}`}
-              </p>
-              <p className="text-muted-foreground">
-                {nextSlot
-                  ? `Next free slot today · ${nextSlot}`
-                  : "No free slots left today"}
-              </p>
+              {isClosed ? (
+                <>
+                  <p className="text-red-600 font-semibold">
+                    Closed today
+                  </p>
+                  <p className="text-red-500">
+                    {closureReason}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p
+                    className={
+                      isOpen ? "font-semibold" : "text-red-600 font-semibold"
+                    }
+                  >
+                    {isOpen
+                      ? `Open now · closes ${formatTime12h(closingTime)}`
+                      : `Closed now · opens ${formatTime12h(openingTime)}`}
+                  </p>
+                  {nextSlot && (
+                    <p className="text-muted-foreground">
+                      Next free slot today · {nextSlot}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <ClockIcon className="text-primary size-5" aria-hidden="true" />
           </div>
