@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchBookingsHeroSection } from "@/lib/api/bookings-hero";
-import { fetchAboutHeroSection } from "@/lib/api/about-hero";
+import { fetchHeroSection } from "@/lib/api/hero";
 
 type HeroContent = {
   image_url: string;
@@ -35,16 +34,11 @@ export function AuthShell({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Randomly choose between bookings hero or about hero
-    const fetchRandom = Math.random() > 0.5 
-      ? fetchBookingsHeroSection() 
-      : fetchAboutHeroSection();
-
-    fetchRandom
+    fetchHeroSection()
       .then((data) => {
         setHeroContent({
           image_url: data.image_url,
-          title: data.title,
+          title: `${data.title_one} ${data.title_two}`,
           description: data.description,
         });
         setLoading(false);
