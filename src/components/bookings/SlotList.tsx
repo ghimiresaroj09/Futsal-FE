@@ -38,9 +38,13 @@ const stateStyles = {
 type SlotState = keyof typeof stateStyles;
 
 function slotState(slot: BookableSlot, dateKey: string): SlotState {
+  // Check API status first - BLOCKED takes precedence
+  if (slot.status === "BLOCKED") return "blocked";
+  
   // A slot blocks once it has STARTED — at 3:01 PM the 3–4 PM slot
   // is no longer bookable.
   if (isSlotStarted(dateKey, Number(slot.start_time.slice(0, 2)))) return "blocked";
+  
   if (slot.status === "BOOKED") return "booked";
   if (slot.status === "RESERVED") return "reserved";
   return "available";
